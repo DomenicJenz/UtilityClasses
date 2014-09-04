@@ -38,3 +38,12 @@ CMakeFiles/testExec.dir/link.txt
 CMakeFiles/TargetDirectories.txt
 
 Makefile
+/build/
+
+.settings/org.eclipse.cdt.codan.core.prefs
+
+.settings/org.eclipse.cdt.managedbuilder.core.prefs
+
+.project
+
+.cproject
