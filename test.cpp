@@ -5,12 +5,8 @@ using namespace Utilities;
 
 int main (int argc, char** argv)
 {
-	BigInteger big1(111);
-	BigInteger big2(222);
-	BigInteger big3(333);
-	std::cout << "Hello WOrlds" << std::endl;
-	big1.insertIntoStream(std::cout);
-	big2.insertIntoStream(std::cout);
-	big3.insertIntoStream(std::cout);
+	BigInteger big1(65536);
+	std::cout << big1.asString() << std::endl;
+	std::cout << "Hello World" << std::endl;
 	std::cout << std::endl;
 }
