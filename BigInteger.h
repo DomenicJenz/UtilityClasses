@@ -12,6 +12,7 @@
 #include <string>
 #include <iostream>
 #include <ostream>
+#include <limits>
 #include "HelperFunctions.h"
 
 
@@ -103,7 +104,7 @@ private:
 	bool _positive;
 
 	unsigned int _baseTypeSize, _baseTypeHalfSize;
-	BaseType _higherMask, _lowerMask;
+	BaseType _highMask, _lowMask;
 
 	void copyFrom (const BigIntegerBase<BaseType>& rhs)
 	{
@@ -113,6 +114,11 @@ private:
 	
 	void setMasks ();
 
+	void addEntry (std::vector<BaseType>* victim, BaseType entry, unsigned int index) const;
+
+	void multiplyAddEntry (std::vector<BaseType>* victim, BaseType entry1, BaseType entry2, unsigned int index) const;
+
+	void subtractEntry (std::vector<BaseType>* victim, BaseType entry, unsigned int index) const;
 
 	int compare (const BigIntegerBase& rhs) const;
 
@@ -123,24 +129,25 @@ private:
 	 */
 	unsigned int getRealSize () const;
 
-	/**
-	 * helper function for the addition of BigIntegers, which handles the addition of value, which are half the size
-	 * of BIGINT_BASETYPE
-	 */
-	BaseType addHalf (BaseType half1, BaseType half2, BaseType* result);
-
-	BaseType getHigherPart (BaseType victim)
+	BaseType getHighPart (BaseType victim) const
 	{
-		return ((victim & _higherMask) >> _baseTypeHalfSize);
+		return ((victim & _highMask) >> _baseTypeHalfSize);
 	}
 
-	BaseType getLowerPart (BaseType victim)
+	BaseType getLowPart (BaseType victim) const
 	{
-		return (victim & _lowerMask);
+		return (victim & _lowMask);
 	}
 };
 
 typedef BigIntegerBase<unsigned char> BigInteger;
+
+template <typename BaseType>
+std::ostream& operator<< (std::ostream& os, const BigIntegerBase<BaseType>& num)
+{
+	os << num.asString();
+	return os;
+}
 
 template <typename BaseType>
 template <typename T>
@@ -159,21 +166,71 @@ void BigIntegerBase<BaseType>::setFromNumber (T number)
 	while (absVal > 0)
 	{
 		tempPackage = absVal & packageMask;
-		std::cout << (int) tempPackage << std::endl;
+		//std::cout << (int) tempPackage << std::endl;
 		_bigNumber.push_back (tempPackage);
 		absVal = absVal >> _baseTypeSize;
 	}
 	_positive = (Utilities::sgn (number) >= 0);
 }
 
-// TODO: Check for overflow in result
 template<typename BaseType>
-BaseType BigIntegerBase<BaseType>::addHalf (BaseType half1, BaseType half2, BaseType* carry)
+void BigIntegerBase<BaseType>::addEntry (std::vector<BaseType>* victim, BaseType entry, unsigned int index) const
 {
-	BaseType result = half1 + half2 + *carry;
-	*carry = getHigherPart (result);
-	result = getLowerPart (result);
-	return result;
+	size_t victimSize = victim->size();
+	while (entry > 0)
+	{
+		if (index >= victimSize)
+		{
+			victim->push_back(entry);
+			entry = 0;
+		}
+		else
+		{
+			BaseType maxAllowed = std::numeric_limits<BaseType>::max() - (*victim)[index];
+			BaseType result = (*victim)[index] + entry;
+			(*victim)[index] = result;
+			entry = (entry > maxAllowed) ? 1 :0;
+			++index;
+		}
+	}
+}
+
+template<typename BaseType>
+void BigIntegerBase<BaseType>::multiplyAddEntry (std::vector<BaseType>* victim, BaseType entry1, BaseType entry2, unsigned int index) const
+{
+	BaseType entry1Low = getLowPart(entry1);
+	BaseType entry2Low = getLowPart(entry2);
+	BaseType entry1High = getHighPart(entry1);
+	BaseType entry2High = getHighPart(entry2);
+	BaseType low[2];
+	low[0] = entry1Low * entry2Low;
+	BaseType high[2];
+	high[1] = entry1High * entry2High;
+	BaseType middle1 = entry1Low * entry2High;
+	BaseType middle2 = entry1High * entry2Low;
+	low[1] = getLowPart(middle1);
+	low[1] += getLowPart(middle2);
+	high[0] = getHighPart(middle1);
+	high[0] += getHighPart(middle2);
+	high[0] += getHighPart(low[1]);
+	low[1] = getLowPart(low[1]) << _baseTypeHalfSize;
+	addEntry(victim, low[0], index);
+	addEntry(victim, low[1], index);
+	addEntry(victim, high[0], index+1);
+	addEntry(victim, high[1], index+1);
+}
+
+template<typename BaseType>
+void BigIntegerBase<BaseType>::subtractEntry (std::vector<BaseType>* victim, BaseType entry, unsigned int index) const
+{
+	size_t victimSize = victim->size();
+	while ((entry > 0) && (index < victimSize))
+	{
+		BaseType result = (*victim)[index] - entry;
+		entry = (entry > (*victim)[index]) ? 1 : 0;
+		(*victim)[index] = result;
+		++index;
+	}
 }
 
 template<typename BaseType>
@@ -192,44 +249,10 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator+= (const BigInteger
 		*this = rhs - (*this);
 		return *this;
 	}
-	unsigned int mySize = _bigNumber.size ();
-	unsigned int otherSize = rhs._bigNumber.size ();
-	//int min = DJBasicFunctions::min (mySize, otherSize);
-	int maxSize = std::max (mySize, otherSize);
-
-	if (maxSize > mySize)
+	unsigned int rhsSize = rhs._bigNumber.size ();
+	for (unsigned int i = 0; i < rhsSize; ++i)
 	{
-		// the result will be larger than me, so fill it up with zeroes before the addition process begins
-		for (int i = mySize; i < maxSize; i++)
-		{
-			_bigNumber.push_back (0);
-		}
-	}
-
-	BaseType carry = 0;
-	for (int i = 0; i < maxSize; i++)
-	{
-		BaseType currentPartThis = _bigNumber[i];
-		BaseType currentPartRhs = rhs._bigNumber[i];
-		//BIGINT_BASETYPE lowerRes, higherRes;
-		_bigNumber[i] = currentPartThis + currentPartRhs + carry;
-		// overflow occured
-		if ((_bigNumber[i] < currentPartThis) || ((_bigNumber[i] == currentPartThis) && (currentPartRhs > 0)))
-		{
-			carry = 1;
-		}
-		else
-		{
-			carry = 0;
-		}
-		//lowerRes = addHalf (getLowerPart (currentPartThis), getLowerPart (currentPartRhs), carry);
-		//higherRes = addHalf (getHigherPart (currentPartThis), getHigherPart (currentPartRhs), carry);
-		//_bigNumber[i] = (higherRes << _baseTypeHalfSize) + lowerRes;
-	}
-
-	if (carry > 0)
-	{
-		_bigNumber.push_back (carry);
+		addEntry (&_bigNumber, rhs._bigNumber[i], i);
 	}
 
 	return *this;
@@ -247,23 +270,8 @@ template<typename BaseType>
 BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator-= (const BigIntegerBase<BaseType>& rhs)
 {
 	int comparison = this->compare (rhs);
-	const std::vector<BaseType>* biggerSide;
-	const std::vector<BaseType>* smallerSide;
+	std::vector<BaseType> smallerSide;
 	bool resultIsPositive;
-
-	// we want to subtract the smaller number from the bigger one
-	if (comparison >= 0)
-	{
-		resultIsPositive = true;
-		biggerSide = &this->_bigNumber;
-		smallerSide = &rhs._bigNumber;
-	}
-	else
-	{
-		resultIsPositive = false;
-		biggerSide = &rhs._bigNumber;
-		smallerSide = &this->_bigNumber;
-	}
 
 	// a - (-b) = a + b
 	if (this->isPositive () && !rhs.isPositive ())
@@ -279,47 +287,32 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator-= (const BigInteger
 		*this += rhs;
 		return *this;
 	}
-	// (-a) - (-b) = -a + b = b - a
-	else if (!this->isPositive () && !rhs.isPositive ())
+
+	// we want to subtract the smaller number from the bigger one
+	if (comparison >= 0)
 	{
-		resultIsPositive = !resultIsPositive; // if a-b would have been positive, so b-a is negative
+		resultIsPositive = true;
+		smallerSide = rhs._bigNumber;
+	}
+	else
+	{
+		resultIsPositive = false;
+		smallerSide = this->_bigNumber;
+		_bigNumber = rhs._bigNumber;
 	}
 
-	int carry = 0;
-	int smallerSize = smallerSide->size ();
-	int biggerSize = biggerSide->size ();
-	BaseType partResult;
-	BaseType currentBigger, currentSmaller;
-	for (int i = 0; i < smallerSize; i++)
+	// (-a) - (-b) = -a + b = b - a
+	if (!this->isPositive () && !rhs.isPositive ())
 	{
-		currentBigger = biggerSide->at (i);
-		currentSmaller = smallerSide->at (i);
-		partResult = currentBigger - currentSmaller - carry;
-		// utilizing the effect of an underflow, where -1 = 255, a negative number will be "bigger" than the one from which was
-		// subtracted
-		if ((partResult > currentBigger) || ((partResult == currentBigger) && (currentSmaller > 0)))
-		{
-			carry = 1;
-		}
-		else
-		{
-			carry = 0;
-		}
-		_bigNumber[i] = partResult;
+		resultIsPositive = !resultIsPositive; // if a-b would have been positive, then b-a is negative
 	}
-	for (int i = smallerSize; i < biggerSize; i++)
+
+	unsigned int smallerSize = smallerSide.size();
+	for (unsigned int i = 0; i < smallerSize; ++i)
 	{
-		partResult = biggerSide->at (i) - carry;
-		if (partResult > biggerSide->at (i))
-		{
-			carry = 1;
-		}
-		else
-		{
-			carry = 0;
-		}
-		_bigNumber[i] = partResult;
+		subtractEntry(&_bigNumber, smallerSide[i], i);
 	}
+
 	cleanLeadingZeroes ();
 	_positive = resultIsPositive;
 
@@ -337,15 +330,27 @@ const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator- (const BigInt
 template <typename BaseType>
 BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator*= (const BigIntegerBase<BaseType>& rhs)
 {
+	BigIntegerBase<BaseType> temp = (*this) * rhs;
+	_bigNumber = temp._bigNumber;
+	_positive = temp._positive;
 	return *this;
 }
 
 template <typename BaseType>
 const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBase<BaseType>& rhs) const
 {
-	BigIntegerBase<BaseType> tempInt (*this);
-	tempInt *= rhs;
-	return tempInt;
+	BigIntegerBase<BaseType> result;
+	result._positive = (_positive && rhs._positive) || (!_positive && !rhs._positive);
+	size_t mySize = _bigNumber.size();
+	size_t rhsSize = rhs._bigNumber.size();
+	for (size_t l = 0; l < mySize; ++l)
+	{
+		for (size_t r = 0; r < rhsSize; ++r)
+		{
+			multiplyAddEntry(&(result._bigNumber), _bigNumber[l], rhs._bigNumber[r], l+r);
+		}
+	}
+	return result;
 }
 
 template <typename BaseType>
@@ -442,8 +447,8 @@ void BigIntegerBase<BaseType>::setMasks ()
 {
 	_baseTypeSize = sizeof (BaseType) << 3;
 	_baseTypeHalfSize = _baseTypeSize >> 1;
-	_lowerMask = ((BaseType) 1 << _baseTypeHalfSize) - 1;
-	_higherMask = _lowerMask << _baseTypeHalfSize;
+	_lowMask = ((BaseType) 1 << _baseTypeHalfSize) - 1;
+	_highMask = _lowMask << _baseTypeHalfSize;
 }
 
 template <typename BaseType>
@@ -480,16 +485,15 @@ std::string BigIntegerBase<BaseType>::asString () const
 	std::string result;
 	std::vector<BaseType> temp = _bigNumber;
 	BaseType rest;
-	std::cout << _bigNumber.size() << " digits: ";
-	for (const auto& digit : _bigNumber)
-	{
-		std::cout << (int) digit << " ";
-	}
-	std::cout << std::endl;
+
 	while (temp.size() > 0)
 	{
 		rest = divideBy10 (temp);
 		result.insert(result.begin(), rest + '0');
+	}
+	if (!this->_positive)
+	{
+		result.insert(result.begin(), '-');
 	}
 
 	return result;
