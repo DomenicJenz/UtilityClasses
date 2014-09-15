@@ -71,6 +71,9 @@ public:
   BigIntegerBase& operator*= (const BigIntegerBase& rhs);
   BigIntegerBase operator* (const BigIntegerBase& rhs) const;
 
+  BigIntegerBase& operator/= (const BigIntegerBase& rhs);
+  BigIntegerBase operator/ (const BigIntegerBase& rhs) const;
+
   virtual void insertIntoStream (std::ostream& os) const;
 
   std::string asString () const;
@@ -104,9 +107,27 @@ public:
   	return (this->compare (rhs) == 0);
 	}
 
+  bool isBitSet (unsigned int index) const;
+
+  void setBit (unsigned int index, bool setToOne = true);
+
+  void resetBit (unsigned int index)
+  {
+  	setBit(index, false);
+  }
+
   bool isPositive () const
   {
   	return _isPositive;
+  }
+
+  void printInternal ()
+  {
+  	for (const auto& part : _bigNumber)
+  	{
+  		std::cout << std::hex << (int) part << " ";
+  	}
+  	std::cout << std::dec << std::endl;
   }
 
   friend void swap(BigIntegerBase<BaseType>& a, BigIntegerBase<BaseType>& b)
@@ -123,7 +144,6 @@ private:
 	static const unsigned int _baseTypeHalfSize = sizeof(BaseType) << 2;
 	static const BaseType _lowMask = ((BaseType) 1 << (sizeof(BaseType) << 2)) - 1;
 	static const BaseType _highMask = (((BaseType) 1 << (sizeof(BaseType) << 2)) - 1) << (sizeof(BaseType) << 2);
-
 
 	void copyFrom (const BigIntegerBase<BaseType>& rhs)
 	{
@@ -193,6 +213,44 @@ void BigIntegerBase<BaseType>::setFromNumber (T number)
 }
 
 template <typename BaseType>
+bool BigIntegerBase<BaseType>::isBitSet (unsigned int index) const
+{
+	unsigned int chunkNr = index / _baseTypeSize;
+	if (chunkNr >= _bigNumber.size())
+	{
+		return false;
+	}
+	else
+	{
+		unsigned int chunkIndex = index % _baseTypeSize;
+		return (_bigNumber[chunkNr] & (1 << chunkIndex)) > 0;
+	}
+}
+
+template <typename BaseType>
+void BigIntegerBase<BaseType>::setBit (unsigned int index, bool setToOne)
+{
+	unsigned int chunkNr = index / _baseTypeSize;
+	if (chunkNr >= _bigNumber.size())
+	{
+		unsigned int fillChunks = chunkNr - _bigNumber.size() + 1;
+		for (unsigned int i = 0; i < fillChunks; ++i)
+		{
+			_bigNumber.push_back((BaseType) 0);
+		}
+	}
+	unsigned int chunkIndex = index % _baseTypeSize;
+	if (setToOne)
+	{
+		_bigNumber[chunkNr] |= (1 << chunkIndex);
+	}
+	else // set to Zero
+	{
+		_bigNumber[chunkNr] &= ~(1 << chunkIndex);
+	}
+}
+
+template <typename BaseType>
 void BigIntegerBase<BaseType>::shiftLeft (unsigned int howMuch)
 {
 	unsigned int blocks = howMuch / _baseTypeSize;
@@ -236,7 +294,6 @@ void BigIntegerBase<BaseType>::shiftRight (unsigned int howMuch)
 	{
 		return;
 	}
-
 	for (unsigned int i = 0; i < chunks - blocks - 1; ++i)
 	{
 		_bigNumber[i] = _bigNumber[i + blocks] >> shiftPart1;
@@ -431,6 +488,20 @@ BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBa
 }
 
 template <typename BaseType>
+BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator/= (const BigIntegerBase& rhs)
+{
+	return *this;
+}
+
+template <typename BaseType>
+BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator/ (const BigIntegerBase& rhs) const
+{
+	BigIntegerBase<BaseType> result;
+
+	return result;
+}
+
+template <typename BaseType>
 int BigIntegerBase<BaseType>::compare (const BigIntegerBase<BaseType>& rhs) const
 {
 
@@ -486,6 +557,11 @@ void BigIntegerBase<BaseType>::cleanLeadingZeroes ()
 		if (_bigNumber[i] == 0)
 		{
 			_bigNumber.erase (_bigNumber.begin () + i);
+		}
+		else
+		{
+			// if an entry != 0 is encountered, the erasing has to stop
+			return;
 		}
 	}
 }
