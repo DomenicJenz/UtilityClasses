@@ -33,6 +33,10 @@ public:
 	{
 		setFromNumber (number);
 	}
+	BigIntegerBase (const std::string& number)
+	{
+		setFromString (number);
+	}
 	BigIntegerBase (const BigIntegerBase<BaseType>& copy)
 	{
 		copyFrom (copy);
@@ -46,6 +50,8 @@ public:
 
   template <typename T>
   void setFromNumber (T number);
+
+  void setFromString (const std::string& number);
 
   BigIntegerBase<BaseType>& operator= (const BigIntegerBase<BaseType>& rhs)
   {
@@ -181,6 +187,15 @@ private:
 
 typedef BigIntegerBase<unsigned char> BigInteger;
 
+
+BigInteger operator"" _bigInt(const char* val)
+{
+  BigInteger result;
+  result.setFromString(std::string(val));
+  return result;
+}
+
+
 template <typename BaseType>
 std::ostream& operator<< (std::ostream& os, const BigIntegerBase<BaseType>& num)
 {
@@ -198,8 +213,6 @@ void BigIntegerBase<BaseType>::setFromNumber (T number)
 	{
 		_bigNumber.push_back(0);
 	}
-
-	int typeSize = sizeof (T) << 3;
 	BaseType tempPackage;
 	T packageMask = ((BaseType) -1);
 	while (absVal > 0)
@@ -210,6 +223,29 @@ void BigIntegerBase<BaseType>::setFromNumber (T number)
 		absVal = absVal >> _baseTypeSize;
 	}
 	_isPositive = (Utilities::sgn (number) >= 0);
+}
+
+template <typename BaseType>
+void BigIntegerBase<BaseType>::setFromString (const std::string& number)
+{
+	BigIntegerBase<BaseType> baseTen = 10;
+	_bigNumber.clear();
+	if (number.size() == 0)
+	{
+		_bigNumber.push_back(0);
+		return;
+	}
+	size_t stringSize = number.size();
+	for (size_t i = 0; i < stringSize; ++i)
+	{
+		if (isdigit(number[i]))
+		{
+			*this *= baseTen;
+			*this += (number[i] - '0');
+		}
+	}
+	_isPositive = (number[0] != '-');
+
 }
 
 template <typename BaseType>
@@ -500,6 +536,7 @@ template <typename BaseType>
 BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator/ (const BigIntegerBase& rhs) const
 {
 	BigIntegerBase<BaseType> result;
+	result._isPositive = (_isPositive && rhs._isPositive) || (!_isPositive && !rhs._isPositive);
 	BigIntegerBase<BaseType> divi;
 	for (int i = (_bigNumber.size() * _baseTypeSize) - 1; i >= 0; --i)
 	{
