@@ -121,11 +121,11 @@ public:
   	return _isPositive;
   }
 
-  void printInternal ()
+  void printInternal () const
   {
-  	for (const auto& part : _bigNumber)
+  	for (int i = _bigNumber.size() - 1; i >= 0 ; --i)
   	{
-  		std::cout << std::hex << (int) part << " ";
+  		std::cout << std::hex << (int) _bigNumber[i] << " ";
   	}
   	std::cout << std::dec << std::endl;
   }
@@ -465,8 +465,9 @@ template <typename BaseType>
 BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator*= (const BigIntegerBase<BaseType>& rhs)
 {
 	BigIntegerBase<BaseType> temp = (*this) * rhs;
-	_bigNumber = temp._bigNumber;
-	_isPositive = temp._isPositive;
+	//_bigNumber = temp._bigNumber;
+	//_isPositive = temp._isPositive;
+	swap(*this, temp);
 	return *this;
 }
 
@@ -490,6 +491,8 @@ BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBa
 template <typename BaseType>
 BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator/= (const BigIntegerBase& rhs)
 {
+	BigIntegerBase<BaseType> temp = (*this) / rhs;
+	swap(*this, temp);
 	return *this;
 }
 
@@ -497,6 +500,21 @@ template <typename BaseType>
 BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator/ (const BigIntegerBase& rhs) const
 {
 	BigIntegerBase<BaseType> result;
+	BigIntegerBase<BaseType> divi;
+	for (int i = (_bigNumber.size() * _baseTypeSize) - 1; i >= 0; --i)
+	{
+		divi.shiftLeft(1);
+		if (this->isBitSet(i))
+		{
+			divi.setBit(0);
+		}
+		if (divi >= rhs)
+		{
+			result.setBit(i);
+			divi -= rhs;
+		}
+	}
+	result.cleanLeadingZeroes();
 
 	return result;
 }
@@ -534,7 +552,7 @@ int BigIntegerBase<BaseType>::compare (const BigIntegerBase<BaseType>& rhs) cons
 	}
 	else
 	{
-		for (int i = mySize - 1; i >= 0; i++)
+		for (int i = mySize - 1; i >= 0; --i)
 		{
 			if (_bigNumber[i] < rhs._bigNumber[i])
 			{

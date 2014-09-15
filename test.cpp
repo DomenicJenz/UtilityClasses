@@ -9,12 +9,12 @@ int main (int argc, char** argv)
 	BigInteger big2(4321);
 	BigInteger big3;
 	std::cout << big1.asString() << " * " << big2<< std::endl;
-	big3 = big1 + big2;
+	big3 = big2 * big1;
 	std::cout << big3 << std::endl;
-	BigInteger big4;
-	big4.setBit(20);
-	big4.setBit(4);
+	big3 /= 10;
+	std::cout << big3 << std::endl;
+	BigInteger big4 = big3 / 10;
 	std::cout << big4 << std::endl;
-	big4.shiftRight(1);
-	std::cout << big4.isBitSet(4) << " " << big4.isBitSet(3) << std::endl;
+	big4 *= 10;
+	std::cout << big4 << std::endl;
 }
