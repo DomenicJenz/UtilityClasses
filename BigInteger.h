@@ -63,13 +63,13 @@ public:
   }
 
   BigIntegerBase& operator+= (const BigIntegerBase& rhs);
-  const BigIntegerBase operator+ (const BigIntegerBase& rhs) const;
+  BigIntegerBase operator+ (const BigIntegerBase& rhs) const;
 
   BigIntegerBase& operator-= (const BigIntegerBase& rhs);
-  const BigIntegerBase operator- (const BigIntegerBase& rhs) const;
+  BigIntegerBase operator- (const BigIntegerBase& rhs) const;
 
   BigIntegerBase& operator*= (const BigIntegerBase& rhs);
-  const BigIntegerBase operator* (const BigIntegerBase& rhs) const;
+  BigIntegerBase operator* (const BigIntegerBase& rhs) const;
 
   virtual void insertIntoStream (std::ostream& os) const;
 
@@ -336,7 +336,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator+= (const BigInteger
 }
 
 template<typename BaseType>
-const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator+ (const BigIntegerBase<BaseType>& rhs) const
+BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator+ (const BigIntegerBase<BaseType>& rhs) const
 {
 	BigIntegerBase<BaseType> tempInt (*this);
 	tempInt += rhs;
@@ -397,7 +397,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator-= (const BigInteger
 }
 
 template <typename BaseType>
-const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator- (const BigIntegerBase<BaseType>& rhs) const
+BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator- (const BigIntegerBase<BaseType>& rhs) const
 {
 	BigIntegerBase<BaseType> tempInt (*this);
 	tempInt -= rhs;
@@ -414,7 +414,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator*= (const BigInteger
 }
 
 template <typename BaseType>
-const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBase<BaseType>& rhs) const
+BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBase<BaseType>& rhs) const
 {
 	BigIntegerBase<BaseType> result;
 	result._isPositive = (_isPositive && rhs._isPositive) || (!_isPositive && !rhs._isPositive);
