@@ -12,6 +12,7 @@
 #include <string>
 #include <iostream>
 #include <ostream>
+#include <utility>
 #include <limits>
 #include "HelperFunctions.h"
 
@@ -26,19 +27,19 @@ class BigIntegerBase
 public:
 	BigIntegerBase ()
 	{
-		setMasks ();
 		_bigNumber.push_back (0);
-		_positive = true;
 	}
 	BigIntegerBase (long number)
 	{
-		setMasks ();
 		setFromNumber (number);
 	}
 	BigIntegerBase (const BigIntegerBase<BaseType>& copy)
 	{
-		setMasks ();
 		copyFrom (copy);
+	}
+	BigIntegerBase (BigIntegerBase<BaseType>&& source) : BigIntegerBase<BaseType>{}
+	{
+		swap(*this, source);
 	}
 	virtual ~BigIntegerBase () = default;
 
@@ -55,6 +56,12 @@ public:
   	return *this;
   }
 
+  BigIntegerBase<BaseType>& operator= (BigIntegerBase<BaseType>&& other)
+  {
+  	swap(*this, other);
+  	return *this;
+  }
+
   BigIntegerBase& operator+= (const BigIntegerBase& rhs);
   const BigIntegerBase operator+ (const BigIntegerBase& rhs) const;
 
@@ -67,6 +74,10 @@ public:
   virtual void insertIntoStream (std::ostream& os) const;
 
   std::string asString () const;
+
+  void shiftLeft (unsigned int howMuch);
+
+  void shiftRight (unsigned int howMuch);
 
   bool operator<= (const BigIntegerBase& rhs) const
 	{
@@ -95,20 +106,28 @@ public:
 
   bool isPositive () const
   {
-  	return _positive;
+  	return _isPositive;
   }
 
+  friend void swap(BigIntegerBase<BaseType>& a, BigIntegerBase<BaseType>& b)
+  {
+  	swap(a._bigNumber, b._bigNumber);
+  	std::swap(a._isPositive, b._isPositive);
+  }
 
 private:
 	std::vector<BaseType> _bigNumber;
-	bool _positive;
+	bool _isPositive = true;
 
-	unsigned int _baseTypeSize, _baseTypeHalfSize;
-	BaseType _highMask, _lowMask;
+	static const unsigned int _baseTypeSize = sizeof(BaseType) << 3;
+	static const unsigned int _baseTypeHalfSize = sizeof(BaseType) << 2;
+	static const BaseType _lowMask = ((BaseType) 1 << (sizeof(BaseType) << 2)) - 1;
+	static const BaseType _highMask = (((BaseType) 1 << (sizeof(BaseType) << 2)) - 1) << (sizeof(BaseType) << 2);
+
 
 	void copyFrom (const BigIntegerBase<BaseType>& rhs)
 	{
-		_positive = rhs._positive;
+		_isPositive = rhs._isPositive;
 		_bigNumber = rhs._bigNumber;
 	}
 	
@@ -170,7 +189,65 @@ void BigIntegerBase<BaseType>::setFromNumber (T number)
 		_bigNumber.push_back (tempPackage);
 		absVal = absVal >> _baseTypeSize;
 	}
-	_positive = (Utilities::sgn (number) >= 0);
+	_isPositive = (Utilities::sgn (number) >= 0);
+}
+
+template <typename BaseType>
+void BigIntegerBase<BaseType>::shiftLeft (unsigned int howMuch)
+{
+	unsigned int blocks = howMuch / _baseTypeSize;
+	unsigned int shiftPart1 = howMuch % _baseTypeSize;
+	unsigned int shiftPart2 = _baseTypeSize - shiftPart1;
+	size_t chunks = _bigNumber.size();
+	if ((chunks == 0) || (howMuch == 0))
+	{
+		return;
+	}
+	for (unsigned int i = 0; i < blocks; ++i)
+	{
+		_bigNumber.push_back(0);
+	}
+	BaseType entry = _bigNumber[chunks-1] >> shiftPart2;
+	if (entry > 0)
+	{
+		_bigNumber.push_back(entry);
+	}
+	for (unsigned int i = chunks + blocks - 1; i > blocks; --i)
+	{
+		entry = _bigNumber[i - blocks] << shiftPart1;
+		entry += _bigNumber[i - blocks - 1] >> shiftPart2;
+		_bigNumber[i] = entry;
+	}
+	_bigNumber[blocks] = _bigNumber[0] << shiftPart1;
+	for (unsigned int i = 0; i < blocks; ++i)
+	{
+		_bigNumber[i] = 0;
+	}
+}
+
+template <typename BaseType>
+void BigIntegerBase<BaseType>::shiftRight (unsigned int howMuch)
+{
+	unsigned int blocks = howMuch / _baseTypeSize;
+	unsigned int shiftPart1 = howMuch % _baseTypeSize;
+	unsigned int shiftPart2 = _baseTypeSize - shiftPart1;
+	size_t chunks = _bigNumber.size();
+	if ((chunks == 0) || (howMuch == 0))
+	{
+		return;
+	}
+
+	for (unsigned int i = 0; i < chunks - blocks - 1; ++i)
+	{
+		_bigNumber[i] = _bigNumber[i + blocks] >> shiftPart1;
+		_bigNumber[i] += _bigNumber[i + blocks+1] << shiftPart2;
+	}
+	_bigNumber[chunks - 1 - blocks] = _bigNumber[chunks - 1] >> shiftPart1;
+	for (unsigned int i = 0; i < blocks; ++i)
+	{
+		_bigNumber[chunks - 1 - i] = 0;
+	}
+	cleanLeadingZeroes();
 }
 
 template<typename BaseType>
@@ -239,13 +316,13 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator+= (const BigInteger
 	if (this->isPositive () && !rhs.isPositive ())
 	{
 		BigIntegerBase tempRhs (rhs);
-		tempRhs._positive = true;
+		tempRhs._isPositive = true;
 		*this -= tempRhs;
 		return *this;
 	}
 	else if (!this->isPositive () && rhs.isPositive ())
 	{
-		this->_positive = true;
+		this->_isPositive = true;
 		*this = rhs - (*this);
 		return *this;
 	}
@@ -277,7 +354,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator-= (const BigInteger
 	if (this->isPositive () && !rhs.isPositive ())
 	{
 		BigIntegerBase tempRhs (rhs);
-		tempRhs._positive = true;
+		tempRhs._isPositive = true;
 		*this += tempRhs;
 		return *this;
 	}
@@ -314,7 +391,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator-= (const BigInteger
 	}
 
 	cleanLeadingZeroes ();
-	_positive = resultIsPositive;
+	_isPositive = resultIsPositive;
 
 	return *this;
 }
@@ -332,7 +409,7 @@ BigIntegerBase<BaseType>& BigIntegerBase<BaseType>::operator*= (const BigInteger
 {
 	BigIntegerBase<BaseType> temp = (*this) * rhs;
 	_bigNumber = temp._bigNumber;
-	_positive = temp._positive;
+	_isPositive = temp._isPositive;
 	return *this;
 }
 
@@ -340,7 +417,7 @@ template <typename BaseType>
 const BigIntegerBase<BaseType> BigIntegerBase<BaseType>::operator* (const BigIntegerBase<BaseType>& rhs) const
 {
 	BigIntegerBase<BaseType> result;
-	result._positive = (_positive && rhs._positive) || (!_positive && !rhs._positive);
+	result._isPositive = (_isPositive && rhs._isPositive) || (!_isPositive && !rhs._isPositive);
 	size_t mySize = _bigNumber.size();
 	size_t rhsSize = rhs._bigNumber.size();
 	for (size_t l = 0; l < mySize; ++l)
@@ -431,7 +508,7 @@ template <typename BaseType>
 void BigIntegerBase<BaseType>::insertIntoStream (std::ostream& os) const
 {
 	os << "BigInteger ( ";
-	if (!_positive)
+	if (!_isPositive)
 	{
 		os << "-";
 	}
@@ -440,15 +517,6 @@ void BigIntegerBase<BaseType>::insertIntoStream (std::ostream& os) const
 		os << std::hex << (unsigned int) _bigNumber[i] << " ";
 	}
 	os << std::dec << ")";
-}
-
-template <typename BaseType>
-void BigIntegerBase<BaseType>::setMasks ()
-{
-	_baseTypeSize = sizeof (BaseType) << 3;
-	_baseTypeHalfSize = _baseTypeSize >> 1;
-	_lowMask = ((BaseType) 1 << _baseTypeHalfSize) - 1;
-	_highMask = _lowMask << _baseTypeHalfSize;
 }
 
 template <typename BaseType>
@@ -491,7 +559,7 @@ std::string BigIntegerBase<BaseType>::asString () const
 		rest = divideBy10 (temp);
 		result.insert(result.begin(), rest + '0');
 	}
-	if (!this->_positive)
+	if (!this->_isPositive)
 	{
 		result.insert(result.begin(), '-');
 	}
