@@ -8,16 +8,33 @@
 #ifndef __STREAM_H__
 #define __STREAM_H__
 
+#include "Optional.h"
+#include <functional>
+
 namespace Utilities
 {
 
 template<typename T>
 class Stream
 {
+public:
 	Stream () = default;
-	~Stream () = default;
+	virtual ~Stream () = default;
 
-	bool getNext () = 0;
+	virtual void reset () = 0;
+
+	void forEach (std::function<void (const T&)> eachFunc)
+	{
+		Optional<T> currentVal;
+		while ((currentVal = getNext()).hasValue ())
+		{
+			eachFunc (currentVal.getValue());
+		}
+	}
+
+private:
+	virtual Optional<T> getNext () = 0;
+
 };
 
 

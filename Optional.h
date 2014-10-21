@@ -9,6 +9,9 @@
 #ifndef __OPTIONAL_H__
 #define __OPTIONAL_H__
 
+namespace Utilities
+{
+
 template <typename T>
 class Optional
 {
@@ -33,7 +36,12 @@ public:
 		return _hasValue;
 	}
 
-	T getValue (const T& defaultValue = T{})
+	const T& getValue ()
+	{
+		return _value;
+	}
+
+	const T& getValue (const T& defaultValue)
 	{
 		return _hasValue ? _value : defaultValue;
 	}
@@ -64,4 +72,5 @@ Optional<ParamType> optionalNothing ()
 	return Optional<ParamType>{};
 }
 
+}
 #endif /* __OPTIONAL_H__ */

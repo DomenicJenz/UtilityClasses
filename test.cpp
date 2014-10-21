@@ -1,6 +1,7 @@
 #include <iostream>
 #include "BigInteger.h"
 #include "Optional.h"
+#include "RangeStream.h"
 
 using namespace Utilities;
 
@@ -26,10 +27,6 @@ void bigIntegerTest ()
 
 int main (int argc, char** argv)
 {
-	Optional<int> opt1 {33};
-	auto opt2 = optionalValue (3.4);
-	auto opt3 = optionalNothing<std::string>();
-	std::cout << opt1.getValue(0) << std::endl;
-	std::cout << opt2.getValue ()<< std::endl;
-	std::cout << opt3.getValue ("blubb") << std::endl;
+	RangeStream<int> range(0,4,1);
+	range.forEach([](int t){std::cout << t << std::endl;});
 }
