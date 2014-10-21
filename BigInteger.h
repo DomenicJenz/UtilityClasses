@@ -24,6 +24,8 @@ namespace Utilities
 template<typename BaseType = unsigned char>
 class BigIntegerBase
 {
+	static_assert(!std::numeric_limits<BaseType>::is_signed, "BigIntegerBase needs an unsigned BaseType");
+
 public:
 	BigIntegerBase ()
 	{
@@ -653,7 +655,7 @@ void BigIntegerBase<BaseType>::insertIntoStream (std::ostream& os) const
 template <typename BaseType>
 BaseType divideBy10 (std::vector<BaseType>& num)
 {
-	std::size_t vecSize = num.size();
+	typename std::vector<BaseType>::size_type vecSize = num.size();
 	if (vecSize == 0)
 	{
 		return 0;
