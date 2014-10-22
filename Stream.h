@@ -73,8 +73,8 @@ public:
 		return result;
 	}
 
-	//template<typename ResultType>
-	//Stream<ResultType>& map (typename Identity<std::function<ResultType(ElementType)> >::type mapFunc);
+	template<typename ResultType>
+	Stream<ResultType>& map (typename Identity<std::function<ResultType(ElementType)> >::type mapFunc);
 
 	Stream<ElementType>& filter (typename Identity<std::function<bool(ElementType)> >::type filterFunc);
 
@@ -85,41 +85,39 @@ public:
 	virtual Optional<ElementType> getNext () = 0;
 };
 
-template<typename ElementType, typename ParentType = Stream<ElementType>>
-class IntermediateStream : public Stream<ElementType>
+template<typename SourceType, typename ResultType = SourceType>
+class IntermediateStream : public Stream<ResultType>
 {
 public:
-	IntermediateStream (ParentType* parentStream) : _parent(parentStream)
+	IntermediateStream (Stream<SourceType>* parentStream) : _parent(parentStream)
   {
   }
 	virtual ~IntermediateStream () = default;
 
-	void reset () override = 0;
+	void reset () override
+	{
+		_parent->reset ();
+	}
 
-	Optional<ElementType> getNext () override = 0;
+	Optional<ResultType> getNext () override = 0;
 
 protected:
-	ParentType* _parent = nullptr;
+	Stream<SourceType>* _parent = nullptr;
 };
 
-template<typename ElementType, typename ParentType = Stream<ElementType>>
-class FilterStream : public IntermediateStream<ElementType, ParentType>
+template<typename SourceType>
+class FilterStream : public IntermediateStream<SourceType, SourceType>
 {
 public:
-	using FuncType = std::function<bool(ElementType)>;
-	FilterStream (ParentType* parentStream, typename Identity<FuncType>::type filterFunc)
-		: IntermediateStream<ElementType, ParentType>(parentStream), _filterFunc(filterFunc)
+	using FuncType = std::function<bool(const SourceType&)>;
+	FilterStream (Stream<SourceType>* parentStream, typename Identity<FuncType>::type filterFunc)
+		: IntermediateStream<SourceType, SourceType>(parentStream), _filterFunc(filterFunc)
 	{}
 	virtual ~FilterStream() {};
 
-	void reset () override
+	Optional<SourceType> getNext () override
 	{
-		this->_parent->reset();
-	}
-
-	Optional<ElementType> getNext () override
-	{
-		Optional<ElementType> current;
+		Optional<SourceType> current;
 		bool found = false;
 		while (!found && ((current = this->_parent->getNext()).hasValue()))
 		{
@@ -132,15 +130,45 @@ private:
 	FuncType _filterFunc;
 };
 
+template<typename SourceType, typename ResultType>
+class MappingStream : public IntermediateStream<SourceType, ResultType>
+{
+public:
+	using FuncType = std::function<ResultType(const SourceType&)>;
+	MappingStream (Stream<SourceType>* parentStream, typename Identity<FuncType>::type mappingFunc)
+		: IntermediateStream<SourceType, ResultType>(parentStream), _mappingFunc(mappingFunc)
+	{}
 
-//template<typename ResultType>
-//Stream<ResultType>& map (typename Identity<std::function<ResultType(ElementType)> >::type mapFunc);
-//
+
+	Optional<ResultType> getNext () override
+	{
+		Optional<SourceType> current = this->_parent->getNext();
+		Optional<ResultType> result;
+		if (current.hasValue())
+		{
+			result.setValue (_mappingFunc(current.getValue()));
+		}
+		return result;
+	}
+
+private:
+	FuncType _mappingFunc;
+};
+
+
+
+template<typename ElementType>
+template<typename ResultType>
+Stream<ResultType>& Stream<ElementType>::map (typename Identity<std::function<ResultType(ElementType)> >::type mapFunc)
+{
+	MappingStream<ElementType, ResultType>* mapStream = new MappingStream<ElementType, ResultType>(this, mapFunc);
+	return *mapStream;
+}
 
 template<typename ElementType>
 Stream<ElementType>& Stream<ElementType>::filter (typename Identity<std::function<bool(ElementType)> >::type filterFunc)
 {
-	FilterStream<ElementType, Stream<ElementType>>* filterStream = new FilterStream<ElementType, Stream<ElementType>>(this, filterFunc);
+	FilterStream<ElementType>* filterStream = new FilterStream<ElementType>(this, filterFunc);
 	return *filterStream;
 }
 //Stream<ElementType>& limit (unsigned int numberOfElements);

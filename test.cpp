@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include "BigInteger.h"
 #include "Optional.h"
 #include "RangeStream.h"
@@ -28,6 +29,7 @@ void bigIntegerTest ()
 int main (int argc, char** argv)
 {
 	RangeStream<int> range(1,10,1);
-	range.filter([](int a){return (a % 2) == 0;}).forEach([](int t){std::cout << t << std::endl;});
+	std::function<float(int)> multABit = [](int a) -> float{return 1.5 * a;};
+	range.filter([](int a){return (a % 2) == 0;}).map<float>([](int a) -> float{return sqrt(a);}).forEach([](float t){std::cout << t << std::endl;});
 	range.reset();
 }
