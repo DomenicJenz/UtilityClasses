@@ -26,12 +26,6 @@ public:
 		_current = _start;
 	}
 
-private:
-	T _start;
-	T _end;
-	T _step;
-	T _current;
-
 	Optional<T> getNext () override
 	{
 		Optional<T> result;
@@ -46,6 +40,14 @@ private:
 		}
 		return result;
 	}
+
+private:
+	T _start;
+	T _end;
+	T _step;
+	T _current;
+
+
 };
 
 
