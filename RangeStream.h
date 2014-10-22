@@ -5,9 +5,7 @@
  *      Author: domenicjenz
  */
 
-
-#ifndef __RANGESTREAM_H__
-#define __RANGESTREAM_H__
+#pragma once
 
 #include "Stream.h"
 
@@ -50,8 +48,4 @@ private:
 
 };
 
-
-
 }
-
-#endif /* __RANGESTREAM_H__ */

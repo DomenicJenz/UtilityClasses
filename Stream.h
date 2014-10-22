@@ -78,9 +78,7 @@ public:
 
 	Stream<ElementType>& filter (typename Identity<std::function<bool(ElementType)> >::type filterFunc);
 
-	//Stream<ElementType>& limit (unsigned int numberOfElements);
-
-	//Stream<ElementType>& skip (unsigned int numberOfElements);
+	Stream<ElementType>& limit (unsigned long numberOfElements);
 
 	virtual Optional<ElementType> getNext () = 0;
 };
@@ -130,6 +128,37 @@ private:
 	FuncType _filterFunc;
 };
 
+template<typename SourceType>
+class LimitingStream : public IntermediateStream<SourceType, SourceType>
+{
+public:
+	LimitingStream (Stream<SourceType>* parentStream, unsigned long numberOfElements)
+		: IntermediateStream<SourceType, SourceType>(parentStream), _numberOfElements(numberOfElements)
+	{}
+	virtual ~LimitingStream() {};
+
+	void reset () override
+	{
+		_currentElement = 0;
+		this->_parent->reset ();
+	}
+
+	Optional<SourceType> getNext () override
+	{
+		Optional<SourceType> result;
+		if (_currentElement < _numberOfElements)
+		{
+			result = this->_parent->getNext();
+			++_currentElement;
+		}
+		return result;
+	}
+
+private:
+	unsigned long _numberOfElements;
+	unsigned long _currentElement = 0;
+};
+
 template<typename SourceType, typename ResultType>
 class MappingStream : public IntermediateStream<SourceType, ResultType>
 {
@@ -171,7 +200,13 @@ Stream<ElementType>& Stream<ElementType>::filter (typename Identity<std::functio
 	FilterStream<ElementType>* filterStream = new FilterStream<ElementType>(this, filterFunc);
 	return *filterStream;
 }
-//Stream<ElementType>& limit (unsigned int numberOfElements);
+
+template<typename ElementType>
+Stream<ElementType>& Stream<ElementType>::limit (unsigned long numberOfElements)
+{
+	LimitingStream<ElementType>* limitStream = new LimitingStream<ElementType>(this, numberOfElements);
+	return *limitStream;
+}
 //
 //Stream<ElementType>& skip (unsigned int numberOfElements);
 }

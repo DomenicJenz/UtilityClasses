@@ -3,6 +3,7 @@
 #include "BigInteger.h"
 #include "Optional.h"
 #include "RangeStream.h"
+#include "InfiniteStream.h"
 
 using namespace Utilities;
 
@@ -30,6 +31,8 @@ int main (int argc, char** argv)
 {
 	RangeStream<int> range(1,10,1);
 	std::function<float(int)> multABit = [](int a) -> float{return 1.5 * a;};
-	range.filter([](int a){return (a % 2) == 0;}).map<float>([](int a) -> float{return sqrt(a);}).forEach([](float t){std::cout << t << std::endl;});
+	range.filter([](int a){return (a % 2) == 0;}).map<float>([](int a) -> float{return sqrt(a);}).limit(3).forEach([](float t){std::cout << t << std::endl;});
 	range.reset();
+	InfiniteStream<int> evenNumbers([](int& seed){int temp = seed; seed += 2; return temp;}, 2);
+	evenNumbers.limit(10).map<int>([](int a){return a*a;}).limit(5).forEach([](int a) {std::cout << a << std::endl;});
 }
