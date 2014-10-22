@@ -36,4 +36,8 @@ int main (int argc, char** argv)
 	std::cout << range.foldLeft(addFunc, 0) << std::endl;
 	range.reset();
 	std::cout << range.foldLeft([](int a, int b) -> int {return a*b;}, 1) << std::endl;
+	RangeStream<float> rangeF (1.0, 3.0, 1.0);
+	std::cout << rangeF.foldLeft([](float a, float b) {return a/b;}, 100.0) << std::endl;
+	rangeF.reset();
+	std::cout << rangeF.foldRight([](float a, float b) {return a/b;}, 100.0) << std::endl;
 }

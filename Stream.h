@@ -10,6 +10,7 @@
 
 #include "Optional.h"
 #include <functional>
+#include <list>
 
 namespace Utilities
 {
@@ -37,17 +38,22 @@ public:
 		}
 	}
 
-//	template<typename ResultType>
-//	ResultType foldRight (std::function<ResultType (ElementType, ResultType)> foldFunc, const ResultType& initVal)
-//	{
-//		ResultType result = initVal;
-//		Optional<ElementType> currentVal;
-//		while ((currentVal = getNext()).hasValue ())
-//		{
-//			result = foldFunc (currentVal.getValue (), result);
-//		}
-//		return result;
-//	}
+	template<typename ResultType>
+	ResultType foldRight (typename Identity<std::function<ResultType (ElementType, ResultType)> >::type foldFunc, const ResultType& initVal)
+	{
+		ResultType result = initVal;
+		std::list<ElementType> allValues;
+		Optional<ElementType> currentVal;
+		while ((currentVal = getNext()).hasValue ())
+		{
+			allValues.push_front(currentVal.getValue());
+		}
+		for (const ElementType& elem : allValues)
+		{
+			result = foldFunc (elem, result);
+		}
+		return result;
+	}
 
 	/// Identity<std::function...> needed, so lambdas can be used directly ?! It tricks the type deduction.
 	template<typename ResultType>
