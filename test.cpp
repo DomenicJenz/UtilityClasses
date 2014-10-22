@@ -27,6 +27,13 @@ void bigIntegerTest ()
 
 int main (int argc, char** argv)
 {
-	RangeStream<int> range(0,4,1);
+	RangeStream<int> range(1,10,3);
 	range.forEach([](int t){std::cout << t << std::endl;});
+	range.reset();
+	auto adding = [](int a, int b){return a+b;};
+	std::function<int(int,int)> addFunc = adding;
+	std::cout << adding(1,2) << " " << addFunc(2,3) << std::endl;
+	std::cout << range.foldLeft(addFunc, 0) << std::endl;
+	range.reset();
+	std::cout << range.foldLeft([](int a, int b) -> int {return a*b;}, 1) << std::endl;
 }
