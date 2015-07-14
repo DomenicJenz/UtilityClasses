@@ -25,6 +25,12 @@ public:
 	Optional<T>& operator= (const Optional<T>& optVal) = default;
 	Optional<T>& operator= (Optional<T>&& optVal) = default;
 
+	Optional<T>& operator= (const T& value)
+	{
+		setValue(value);
+		return *this;
+	}
+
 	void setValue (const T& value)
 	{
 		_value = value;

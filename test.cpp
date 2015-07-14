@@ -4,8 +4,16 @@
 #include "Optional.h"
 #include "RangeStream.h"
 #include "InfiniteStream.h"
+#include "FibonacciHeap.h"
 
 using namespace Utilities;
+
+template<typename KeyType, typename ValueType>
+std::ostream& operator<< (std::ostream& os, const std::pair<KeyType, ValueType>& victim)
+{
+	os << "(" << victim.first << ", " << victim.second << ")";
+	return os;
+}
 
 void bigIntegerTest ()
 {
@@ -27,7 +35,7 @@ void bigIntegerTest ()
 	std::cout << big5 + 98765432109876543210_bigInt << std::endl;
 }
 
-int main (int argc, char** argv)
+void testStreams ()
 {
 	RangeStream<int> range(1,10,1);
 	std::function<float(int)> multABit = [](int a) -> float{return 1.5 * a;};
@@ -35,4 +43,34 @@ int main (int argc, char** argv)
 	range.reset();
 	InfiniteStream<int> evenNumbers([](int& seed){int temp = seed; seed += 2; return temp;}, 2);
 	evenNumbers.limit(10).map<int>([](int a){return a*a;}).limit(5).forEach([](int a) {std::cout << a << std::endl;});
+}
+
+void testFiboHeap ()
+{
+	FibonacciHeap<int, float> myHeap;
+	myHeap.insert (5, 1.1);
+	myHeap.insert (17, 2.0);
+	myHeap.insert (12, 3.4);
+	myHeap.insert (4, 5.9);
+	myHeap.insert (11, 13.6);
+	myHeap.insert (8, 25.4);
+	myHeap.insert (1, 33.0);
+	myHeap.insert (2, 54.2);
+	//myHeap.print();
+	std::cout << myHeap.deleteMin() << std::endl;
+	//myHeap.print();
+	std::cout << myHeap.deleteMin() << std::endl;
+	std::cout << myHeap.deleteMin() << std::endl;
+	myHeap.insert (6, 45.3);
+	std::cout << myHeap.deleteMin() << std::endl;
+	std::cout << myHeap.deleteMin() << std::endl;
+	std::cout << myHeap.deleteMin() << std::endl;
+	myHeap.print();
+	std::cout << "........." << std::endl;
+	//std::cout << myHeap << std::endl;
+}
+
+int main (int argc, char** argv)
+{
+	testFiboHeap ();
 }
